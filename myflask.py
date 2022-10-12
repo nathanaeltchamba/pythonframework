@@ -1,7 +1,23 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+import json
+from urllib.parse import urlparse
 
 routes = {}
 route_methods = {}
+
+class Request:
+    def __init__(self, request, method):
+        self.request = request
+        self.method = method
+        self.path = urlparse.urlparse(request.path).path
+        self.qs = urlparse.parse_qs(urlparse.urlparse(request.path).query)
+        self.headers = request.headers
+        self.content_length = int(self.headers.get('content-length', 0))
+        self.body = request.rfile.read(self.content_length)
+        try:
+            self.json = json.loads(self.body)
+        except json.decoder.JSONDecodeError: 
+            self.json = {}
 
 class Flask:
     def __init__(self):
