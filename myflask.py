@@ -19,6 +19,14 @@ class Request:
         except json.decoder.JSONDecodeError: 
             self.json = {}
 
+    def write_response(self, response, status_code):
+        self.send_response(status_code)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        if isinstance(response, dict):
+            response = json.dumps(response)
+        self.wfile.write(str.encode(response))
+
 class Flask:
     def __init__(self):
         pass
@@ -36,11 +44,26 @@ class Flask:
         return wrapper
 
 class RequestHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
-        self.wfile.write(str.encode("Handling GET"))
+    def not_found(self, request):
+        return self.write_response(f"{request.path} 404 NOT FOUND", 404)
+
+    def method_not_supported(self, request):
+        return self.write_response(f"{request.path} {request.method} not supported", 401)
+        
+    def process_request(self, request):
+        if request.path not in routes:
+            return self.not_found(request)
+        if request.method in route_methods[request.path]:
+            return self.method_not_supported(request)
+        
+        resp = routes[request.path](request)
+        self.write_response(resp)
     
+            
+    def do_GET(self):
+        request = Request(self, method='GET')
+        return self.process_request(request)
+
     def do_POST(self):
-        pass
+        request = Request(self, method='POST')
+        return self.process_request(request)
